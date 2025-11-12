@@ -1,0 +1,87 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>TipTap Izzy Resizable Image Demo</title>
+    <link rel="stylesheet" href="style.css" />
+    <style>
+      body { font-family: Arial, sans-serif; margin: 20px; }
+      .toolbar { margin-bottom: 10px; display: flex; gap: 8px; }
+      .editor { border: 1px solid #ccc; border-radius: 6px; padding: 12px; min-height: 200px; }
+    </style>
+  </head>
+  <body>
+    <h1>tiptap-izzy-extension-resizable-image</h1>
+    <p>Use Shift while dragging to keep aspect ratio. Images are draggable to reposition.</p>
+
+    <div class="toolbar">
+      <input type="text" id="image-url" placeholder="Image URL" style="width: 320px" />
+      <button id="insert">Insert Image</button>
+      <button id="clear">Clear</button>
+      <label style="margin-left:16px; display:flex; align-items:center; gap:6px;">
+        Align:
+        <select id="align-select">
+          <option value="left">Left</option>
+          <option value="center">Center</option>
+          <option value="right">Right</option>
+        </select>
+        <button id="align-left">⟸</button>
+        <button id="align-center">⇔</button>
+        <button id="align-right">⟹</button>
+      </label>
+    </div>
+
+    <div id="editor" class="editor"></div>
+
+    <script type="module">
+      import { Editor } from 'https://esm.sh/@tiptap/core@2';
+      import StarterKit from 'https://esm.sh/@tiptap/starter-kit@2';
+      // Workaround: gapcursor import is pulled by StarterKit; ensure esm provides it
+      // but if esm fails, starter kit still works for basic content.
+      import { TiptapIzzyExtensionResizableImage } from './resizable-image.js';
+
+      const editor = new Editor({
+        element: document.querySelector('#editor'),
+        extensions: [
+          StarterKit,
+          TiptapIzzyExtensionResizableImage.extend({
+            addOptions() {
+              return {
+                height: 200,
+                showAlignMenu: true,
+                alignMenuPosition: 'below',
+                alignMenuIcons: { left: '<i class="icon-left">i</i>', center: '⇔', right: '⟹', clear: 'x' },
+              };
+            },
+          }),
+        ],
+        content: '<p>Try inserting an image and then resize it using the 8 handles.</p>',
+      });
+
+      const applyAlign = (align) => {
+        // Attempt to set alignment if an image node is selected
+        const applied = editor.commands.setResizableImageAlignment(align);
+        if (!applied) {
+          // If no image selected, try to find last inserted image by selecting node at current position
+          // or simply inform user
+          console.log('Select an image to align it.');
+        }
+      };
+
+      document.getElementById('insert').addEventListener('click', () => {
+        const url = document.getElementById('image-url').value || 'https://picsum.photos/300/200';
+        editor.commands.insertResizableImage({ src: url, width: 300 });
+      });
+
+      document.getElementById('clear').addEventListener('click', () => {
+        editor.commands.clearContent(true);
+      });
+
+      document.getElementById('align-select').addEventListener('change', (e) => applyAlign(e.target.value));
+      document.getElementById('align-left').addEventListener('click', () => applyAlign('left'));
+      document.getElementById('align-center').addEventListener('click', () => applyAlign('center'));
+      document.getElementById('align-right').addEventListener('click', () => applyAlign('right'));
+    </script>
+  </body>
+</html>

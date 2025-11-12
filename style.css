@@ -1,0 +1,73 @@
+/* Styles for resizable image NodeView */
+.tiptap-izzy-resizable-image {
+  border: none;
+}
+.tiptap-izzy-resizable-image.selected .resizable-image-inner {
+  outline: 2px solid #4CAF50;
+  outline-offset: 0;
+}
+
+.tiptap-izzy-resizable-image .resize-overlay {
+  position: absolute;
+  inset: 0;
+}
+
+/* Hide handles when the image is not selected */
+.tiptap-izzy-resizable-image:not(.selected) .resize-handle {
+  display: none;
+}
+.resize-handle {
+  width: 10px;
+  height: 10px;
+  background: #4CAF50;
+  border: 2px solid #fff;
+  box-shadow: 0 1px 4px rgba(0,0,0,0.3);
+  position: absolute;
+  border-radius: 50%;
+  cursor: pointer;
+}
+
+/* Position the 8 handles */
+.handle-n { top: -6px; left: 50%; transform: translateX(-50%); cursor: ns-resize; }
+.handle-s { bottom: -6px; left: 50%; transform: translateX(-50%); cursor: ns-resize; }
+.handle-e { right: -6px; top: 50%; transform: translateY(-50%); cursor: ew-resize; }
+.handle-w { left: -6px; top: 50%; transform: translateY(-50%); cursor: ew-resize; }
+.handle-ne { right: -6px; top: -6px; cursor: nesw-resize; }
+.handle-nw { left: -6px; top: -6px; cursor: nwse-resize; }
+.handle-se { right: -6px; bottom: -6px; cursor: nwse-resize; }
+.handle-sw { left: -6px; bottom: -6px; cursor: nesw-resize; }
+
+/* Alignment wrapper styles */
+.resizable-image-wrapper {
+  display: inline-block; /* inline flow by default */
+  width: auto;
+  text-align: initial;
+}
+.resizable-image-inner {
+  position: relative;
+  display: inline-block;
+}
+
+/* Align menu styles */
+.tiptap-izzy-resizable-image .resizable-image-menu {
+  display: none; /* default hidden until selected */
+  background: rgba(255,255,255,0.9);
+  border: 1px solid #ddd;
+  border-radius: 6px;
+  padding: 4px 6px;
+  box-shadow: 0 2px 6px rgba(0,0,0,0.15);
+}
+.tiptap-izzy-resizable-image.show-menu .resizable-image-menu {
+  display: inline-flex;
+  gap: 4px;
+}
+.tiptap-izzy-resizable-image .resizable-image-menu button {
+  border: none;
+  background: #f5f5f5;
+  padding: 4px 6px;
+  border-radius: 4px;
+  cursor: pointer;
+}
+.tiptap-izzy-resizable-image .resizable-image-menu button:hover {
+  background: #eee;
+}
