@@ -1,6 +1,6 @@
 {
   "name": "tiptap-extension-izzy-resizable-image",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "description": "Resizable image NodeView for TipTap v2 with alignment menu and defaults",
   "license": "MIT",
   "type": "module",
