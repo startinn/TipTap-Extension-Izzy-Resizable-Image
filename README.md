@@ -2,6 +2,8 @@
 
 Resizable inline image node for TipTap v2 with eight resize handles, optional alignment menu, drag-and-drop, and sensible defaults via `.extend()`.
 
+Demo: https://bernanr.github.io/TipTap-Izzy-Extension
+
 ## Features
 
 - Inline resizable image with 8 handles (nw, n, ne, e, se, s, sw, w)
@@ -38,6 +40,23 @@ editor.commands.insertResizableImage({ src: 'https://picsum.photos/300/200', wid
 
 // Align the selected image
 editor.commands.setResizableImageAlignment('center');
+```
+
+### Using from npm (bundler)
+
+```bash
+npm install tiptap-izzy-extension @tiptap/core prosemirror-state
+```
+
+```js
+import { Editor } from '@tiptap/core';
+import StarterKit from '@tiptap/starter-kit';
+import { TiptapIzzyExtensionResizableImage } from 'tiptap-izzy-extension';
+
+const editor = new Editor({
+  element: document.querySelector('#editor'),
+  extensions: [StarterKit, TiptapIzzyExtensionResizableImage],
+});
 ```
 
 ## Defaults via `.extend()`
@@ -149,4 +168,3 @@ Reference: `resizable-image.js:358-372`
 
 - The extension is inline and draggable; selection toggles menu/handles.
 - Deselecting removes the overlay/menu from the DOM to keep markup clean.
-

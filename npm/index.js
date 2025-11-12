@@ -1,0 +1,406 @@
+import { Node } from '@tiptap/core'
+import { NodeSelection, TextSelection, Plugin } from 'prosemirror-state'
+
+function createHandle(direction) {
+  const handle = document.createElement('div')
+  handle.className = `resize-handle handle-${direction}`
+  handle.dataset.direction = direction
+  handle.title = direction
+  return handle
+}
+
+class ResizableImageView {
+  constructor(node, view, getPos, options) {
+    this.node = node
+    this.view = view
+    this.getPos = getPos
+    this.options = options || {}
+    this.aspect = (node.attrs.height && node.attrs.width) ? node.attrs.width / node.attrs.height : null
+
+    this.dom = document.createElement('span')
+    this.dom.className = 'tiptap-izzy-resizable-image'
+    this.dom.style.display = ''
+    this.dom.style.width = ''
+    this.dom.setAttribute('draggable', 'true')
+
+    this.wrapper = document.createElement('div')
+    this.wrapper.className = 'resizable-image-wrapper'
+    this.wrapper.style.display = 'inline-block'
+    this.wrapper.style.width = ''
+    this.dom.appendChild(this.wrapper)
+
+    this.inner = document.createElement('span')
+    this.inner.className = 'resizable-image-inner'
+    this.inner.style.position = 'relative'
+    this.inner.style.display = 'inline-block'
+    this.wrapper.appendChild(this.inner)
+
+    this.img = document.createElement('img')
+    this.img.src = node.attrs.src
+    this.img.alt = node.attrs.alt || ''
+    this.img.style.display = 'block'
+    this.img.style.userSelect = 'none'
+    this.img.style.pointerEvents = 'none'
+    if (node.attrs.width) this.img.style.width = node.attrs.width + 'px'
+    if (node.attrs.height) {
+      this.img.style.height = node.attrs.height + 'px'
+    } else if (this.options && this.options.height) {
+      this.img.style.height = this.options.height + 'px'
+    }
+    this.img.addEventListener('load', () => {
+      if (!this.aspect && this.img.naturalWidth && this.img.naturalHeight) {
+        this.aspect = this.img.naturalWidth / this.img.naturalHeight
+      }
+    })
+    this.inner.appendChild(this.img)
+
+    this.overlay = document.createElement('div')
+    this.overlay.className = 'resize-overlay'
+    this.overlay.style.position = 'absolute'
+    this.overlay.style.left = '0'
+    this.overlay.style.top = '0'
+    this.overlay.style.right = '0'
+    this.overlay.style.bottom = '0'
+    this.overlay.style.pointerEvents = 'none'
+
+    const directions = ['nw', 'n', 'ne', 'e', 'se', 's', 'sw', 'w']
+    this.handles = directions.map(dir => {
+      const h = createHandle(dir)
+      h.style.pointerEvents = 'auto'
+      h.addEventListener('pointerdown', this.onPointerDown.bind(this))
+      this.overlay.appendChild(h)
+      return h
+    })
+
+    this.menu = document.createElement('div')
+    this.menu.className = 'resizable-image-menu'
+    this.menu.style.position = 'absolute'
+    this.menu.style.left = '50%'
+    this.menu.style.transform = 'translateX(-50%)'
+    this.menu.style.pointerEvents = 'auto'
+    this.menu.style.zIndex = '10'
+
+    this.btnLeft = document.createElement('button')
+    this.btnCenter = document.createElement('button')
+    this.btnRight = document.createElement('button')
+    this.btnClear = document.createElement('button')
+
+    this.btnLeft.innerHTML = (node.attrs.iconLeft != null ? node.attrs.iconLeft : (this.options.alignMenuIcons?.left ?? '⟸'))
+    this.btnCenter.innerHTML = (node.attrs.iconCenter != null ? node.attrs.iconCenter : (this.options.alignMenuIcons?.center ?? '⇔'))
+    this.btnRight.innerHTML = (node.attrs.iconRight != null ? node.attrs.iconRight : (this.options.alignMenuIcons?.right ?? '⟹'))
+    this.btnClear.innerHTML = (node.attrs.iconClear != null ? node.attrs.iconClear : (this.options.alignMenuIcons?.clear ?? 'x'))
+
+    this.btnLeft.addEventListener('click', () => this.applyAlignAttr('left'))
+    this.btnCenter.addEventListener('click', () => this.applyAlignAttr('center'))
+    this.btnRight.addEventListener('click', () => this.applyAlignAttr('right'))
+    this.btnClear.addEventListener('click', () => this.applyAlignAttr(null))
+
+    this.menu.appendChild(this.btnLeft)
+    this.menu.appendChild(this.btnCenter)
+    this.menu.appendChild(this.btnRight)
+    this.menu.appendChild(this.btnClear)
+
+    this.updateMenuPosition(node.attrs.alignMenuPosition != null ? node.attrs.alignMenuPosition : (this.options && this.options.alignMenuPosition != null ? this.options.alignMenuPosition : 'below'))
+
+    this.dom.addEventListener('dragstart', (e) => {
+      const dragImg = document.createElement('canvas')
+      dragImg.width = 1
+      dragImg.height = 1
+      e.dataTransfer.setDragImage(dragImg, 0, 0)
+    })
+
+    this.dragging = null
+    this.applyAlignment(node.attrs.align)
+  }
+
+  updateMenuPosition(pos) {
+    this.menu.classList.remove('menu-above', 'menu-below')
+    if (pos === 'above') {
+      this.menu.classList.add('menu-above')
+      this.menu.style.top = '-32px'
+      this.menu.style.bottom = ''
+    } else {
+      this.menu.classList.add('menu-below')
+      this.menu.style.bottom = '-32px'
+      this.menu.style.top = ''
+    }
+  }
+
+  applyAlignAttr(align) {
+    const pos = this.getPos()
+    const tr = this.view.state.tr.setNodeMarkup(pos, null, { ...this.node.attrs, align })
+    this.view.dispatch(tr)
+  }
+
+  applyAlignment(align) {
+    this.inner.style.marginLeft = ''
+    this.inner.style.marginRight = ''
+    this.wrapper.style.textAlign = ''
+    this.inner.style.display = 'inline-block'
+    if (align === 'center' || align === 'left' || align === 'right') {
+      this.wrapper.style.display = 'block'
+    } else {
+      this.wrapper.style.display = 'inline-block'
+    }
+    if (align === 'center') {
+      this.wrapper.style.textAlign = 'center'
+    } else if (align === 'right') {
+      this.wrapper.style.textAlign = 'right'
+    } else if (align === 'left') {
+      this.wrapper.style.textAlign = 'left'
+    }
+  }
+
+  onPointerDown(event) {
+    event.preventDefault()
+    const direction = event.currentTarget.dataset.direction
+    const rect = this.img.getBoundingClientRect()
+    this.dragging = {
+      direction,
+      startX: event.clientX,
+      startY: event.clientY,
+      startWidth: rect.width,
+      startHeight: rect.height,
+      startLeft: rect.left,
+      startTop: rect.top,
+      keepAspect: true,
+    }
+    this._moveHandler = this.onPointerMove.bind(this)
+    this._upHandler = this.onPointerUp.bind(this)
+    window.addEventListener('pointermove', this._moveHandler)
+    window.addEventListener('pointerup', this._upHandler, { once: true })
+  }
+
+  onPointerMove(event) {
+    if (!this.dragging) return
+    const d = this.dragging
+    const dx = event.clientX - d.startX
+    const dy = event.clientY - d.startY
+    let newWidth = d.startWidth
+    let newHeight = d.startHeight
+    const dir = d.direction
+    const signX = (dir.includes('e') ? 1 : (dir.includes('w') ? -1 : 0))
+    const signY = (dir.includes('s') ? 1 : (dir.includes('n') ? -1 : 0))
+    if (signX !== 0) newWidth = Math.max(20, d.startWidth + dx * signX)
+    if (signY !== 0) newHeight = Math.max(20, d.startHeight + dy * signY)
+    if (d.keepAspect && this.aspect) {
+      if (signX !== 0 && signY === 0) {
+        newHeight = Math.round(newWidth / this.aspect)
+      } else if (signY !== 0 && signX === 0) {
+        newWidth = Math.round(newHeight * this.aspect)
+      } else {
+        newHeight = Math.round(newWidth / this.aspect)
+      }
+    }
+    this.img.style.width = newWidth + 'px'
+    this.img.style.height = newHeight + 'px'
+  }
+
+  onPointerUp(event) {
+    window.removeEventListener('pointermove', this._moveHandler)
+    this._moveHandler = null
+    if (!this.dragging) return
+    const finalRect = this.img.getBoundingClientRect()
+    const newWidth = Math.round(finalRect.width)
+    const newHeight = Math.round(finalRect.height)
+    this.dragging = null
+    const pos = this.getPos()
+    const tr = this.view.state.tr.setNodeMarkup(pos, null, { ...this.node.attrs, width: newWidth, height: newHeight })
+    this.view.dispatch(tr)
+  }
+
+  update(node) {
+    if (node.type !== this.node.type) return false
+    this.node = node
+    if (node.attrs.src !== this.img.src) this.img.src = node.attrs.src
+    this.img.alt = node.attrs.alt || ''
+    if (node.attrs.width) this.img.style.width = node.attrs.width + 'px'
+    else this.img.style.removeProperty('width')
+    if (node.attrs.height) this.img.style.height = node.attrs.height + 'px'
+    else this.img.style.removeProperty('height')
+    this.applyAlignment(node.attrs.align)
+    this.updateMenuPosition(node.attrs.alignMenuPosition != null ? node.attrs.alignMenuPosition : (this.options && this.options.alignMenuPosition != null ? this.options.alignMenuPosition : 'below'))
+    this.btnLeft.innerHTML = (node.attrs.iconLeft != null ? node.attrs.iconLeft : (this.options && this.options.alignMenuIcons ? this.options.alignMenuIcons.left : '⟸'))
+    this.btnCenter.innerHTML = (node.attrs.iconCenter != null ? node.attrs.iconCenter : (this.options && this.options.alignMenuIcons ? this.options.alignMenuIcons.center : '⇔'))
+    this.btnRight.innerHTML = (node.attrs.iconRight != null ? node.attrs.iconRight : (this.options && this.options.alignMenuIcons ? this.options.alignMenuIcons.right : '⟹'))
+    this.btnClear.innerHTML = (node.attrs.iconClear != null ? node.attrs.iconClear : (this.options && this.options.alignMenuIcons ? this.options.alignMenuIcons.clear : 'x'))
+    this.aspect = (node.attrs.height && node.attrs.width) ? node.attrs.width / node.attrs.height : this.aspect
+    return true
+  }
+
+  selectNode() {
+    this.dom.classList.add('selected')
+    const showMenu = (this.node.attrs.showAlignMenu != null ? this.node.attrs.showAlignMenu : (this.options && this.options.showAlignMenu != null ? this.options.showAlignMenu : true))
+    if (showMenu !== false) {
+      this.dom.classList.add('show-menu')
+      if (!this.inner.contains(this.menu)) {
+        this.inner.appendChild(this.menu)
+      }
+      this.menu.style.display = ''
+    } else {
+      this.dom.classList.remove('show-menu')
+      if (this.inner.contains(this.menu)) {
+        this.inner.removeChild(this.menu)
+      }
+    }
+    if (!this.inner.contains(this.overlay)) {
+      this.inner.appendChild(this.overlay)
+    }
+    this.overlay.style.pointerEvents = 'auto'
+  }
+
+  deselectNode() {
+    this.dom.classList.remove('selected')
+    this.dom.classList.remove('show-menu')
+    if (this.inner.contains(this.menu)) {
+      this.inner.removeChild(this.menu)
+    }
+    if (this.inner.contains(this.overlay)) {
+      this.inner.removeChild(this.overlay)
+    }
+    this.overlay.style.pointerEvents = 'none'
+  }
+
+  stopEvent(event) {
+    return (
+      (event.target.classList && event.target.classList.contains('resize-handle')) ||
+      (this.menu && this.menu.contains(event.target))
+    )
+  }
+
+  destroy() {
+    window.removeEventListener('pointermove', this._moveHandler)
+    window.removeEventListener('pointerup', this._upHandler)
+  }
+}
+
+export const TiptapIzzyExtensionResizableImage = Node.create({
+  name: 'tiptap-izzy-extension-resizable-image',
+  inline: true,
+  group: 'inline',
+  draggable: true,
+  selectable: true,
+  atom: true,
+
+  addAttributes() {
+    return {
+      src: { default: null },
+      alt: { default: null },
+      title: { default: null },
+      width: { default: null },
+      height: { default: null },
+      align: { default: 'left' },
+      showAlignMenu: { default: null },
+      alignMenuPosition: { default: null },
+      iconLeft: { default: null },
+      iconCenter: { default: null },
+      iconRight: { default: null },
+      iconClear: { default: null },
+    }
+  },
+
+  parseHTML() {
+    return [{ tag: 'img[src]' }]
+  },
+
+  renderHTML({ HTMLAttributes }) {
+    return ['img', HTMLAttributes]
+  },
+
+  addNodeView() {
+    return ({ node, view, getPos }) => new ResizableImageView(node, view, getPos, this.options)
+  },
+
+  addOptions() {
+    return {
+      height: null,
+      showAlignMenu: true,
+      alignMenuPosition: 'below',
+      alignMenuIcons: { left: '⟸', center: '⇔', right: '⟹', clear: 'x' },
+    }
+  },
+
+  addCommands() {
+    return {
+      insertResizableImage:
+        ({ src, alt, title, width, height }) => ({ commands }) => {
+          return commands.insertContent({
+            type: this.name,
+            attrs: {
+              src,
+              alt,
+              title,
+              width,
+              height: height != null ? height : this.options.height,
+              showAlignMenu: this.options.showAlignMenu,
+              alignMenuPosition: this.options.alignMenuPosition,
+              iconLeft: this.options.alignMenuIcons?.left,
+              iconCenter: this.options.alignMenuIcons?.center,
+              iconRight: this.options.alignMenuIcons?.right,
+              iconClear: this.options.alignMenuIcons?.clear,
+            },
+          })
+        },
+      setResizableImageAlignment:
+        (align) => ({ editor }) => {
+          const { state } = editor
+          const sel = state.selection
+          if (sel instanceof NodeSelection && sel.node && sel.node.type.name === this.name) {
+            const pos = sel.$from.pos
+            const tr = state.tr.setNodeMarkup(pos, null, { ...sel.node.attrs, align })
+            editor.view.dispatch(tr.scrollIntoView())
+            return true
+          }
+          return false
+        },
+    }
+  },
+
+  addKeyboardShortcuts() {
+    return {
+      Enter: ({ editor }) => {
+        const { state } = editor
+        const { selection } = state
+        if (selection instanceof NodeSelection && selection.node && selection.node.type.name === this.name) {
+          const paragraph = state.schema.nodes.paragraph?.createAndFill()
+          if (!paragraph) return false
+          const tr = state.tr.insert(selection.to, paragraph)
+          const resolved = tr.doc.resolve(selection.to + 1)
+          tr.setSelection(TextSelection.create(tr.doc, resolved.pos))
+          editor.view.dispatch(tr.scrollIntoView())
+          return true
+        }
+        return false
+      },
+    }
+  },
+
+  addProseMirrorPlugins() {
+    return [
+      new Plugin({
+        props: {
+          handleDOMEvents: {
+            mousedown: (view, event) => {
+              const sel = view.state.selection
+              if (sel instanceof NodeSelection && sel.node && sel.node.type.name === this.name) {
+                const nodeDOM = view.nodeDOM(sel.$from.pos)
+                const target = event.target
+                if (nodeDOM && target && nodeDOM.contains(target)) {
+                  return false
+                }
+                const coords = { left: event.clientX, top: event.clientY }
+                const found = view.posAtCoords(coords)
+                if (found && typeof found.pos === 'number') {
+                  const tr = view.state.tr.setSelection(TextSelection.create(view.state.doc, found.pos))
+                  view.dispatch(tr)
+                  return true
+                }
+              }
+              return false
+            },
+          },
+        },
+      }),
+    ]
+  },
+})

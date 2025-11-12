@@ -1,0 +1,32 @@
+{
+  "name": "tiptap-izzy-extension",
+  "version": "0.1.0",
+  "description": "Resizable image NodeView for TipTap v2 with alignment menu and defaults",
+  "license": "MIT",
+  "type": "module",
+  "main": "npm/index.js",
+  "exports": {
+    ".": "./npm/index.js"
+  },
+  "homepage": "https://bernanr.github.io/TipTap-Izzy-Extension",
+  "files": [
+    "npm/index.js",
+    "README.md"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/BernanR/TipTap-Izzy-Extension.git"
+  },
+  "keywords": [
+    "tiptap",
+    "prosemirror",
+    "image",
+    "resizable",
+    "extension",
+    "nodeview"
+  ],
+  "peerDependencies": {
+    "@tiptap/core": "^2.0.0",
+    "prosemirror-state": "^1.0.0"
+  }
+}
