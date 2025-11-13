@@ -2,7 +2,7 @@
 
 Resizable inline image node for TipTap v2 with eight resize handles, optional alignment menu, drag-and-drop, and sensible defaults via `.extend()`.
 
-Demo: https://bernanr.github.io/TipTap-Extension-Izzy-Resizable-Image
+Demo: https://startinn.github.io/TipTap-Extension-Izzy-Resizable-Image/
 
 ## Features
 
@@ -81,6 +81,16 @@ const editor = new Editor({
             clear: 'x',
             preview: '🔍',
           },
+          alignMenuButtonsHide: {
+            // hide specific buttons if true
+            // left: true,
+            // right: true,
+            // center: true,
+            // clear: true,
+            // preview: true,
+            // size50: true,
+            // size100: true,
+          },
         };
       },
     }),
@@ -97,6 +107,7 @@ editor.commands.insertResizableImage({ src: 'https://picsum.photos/300/200', wid
 - `showAlignMenu: boolean` — whether the inline alignment menu is shown by default.
 - `alignMenuPosition: 'above' | 'below'` — where the menu appears relative to the image.
 - `alignMenuIcons: { left: string, center: string, right: string, clear: string, preview: string }` — HTML strings for menu buttons.
+- `alignMenuButtonsHide: Record<string, boolean>` — hide specific buttons when `true` (supports `left`, `center`, `right`, `clear`, `preview`, `size50`, `size100`).
 
 Reference:
 - Defined in `resizable-image.js:387-394`

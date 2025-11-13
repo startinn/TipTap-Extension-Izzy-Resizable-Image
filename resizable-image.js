@@ -116,24 +116,33 @@ class ResizableImageView {
     this.btnRight = document.createElement('button');
     this.btnClear = document.createElement('button');
     this.btnView = document.createElement('button');
+    this.btnSize50 = document.createElement('button');
+    this.btnSize100 = document.createElement('button');
 
     this.btnLeft.innerHTML = (node.attrs.iconLeft != null ? node.attrs.iconLeft : (this.options.alignMenuIcons?.left ?? '⟸'));
     this.btnCenter.innerHTML = (node.attrs.iconCenter != null ? node.attrs.iconCenter : (this.options.alignMenuIcons?.center ?? '⇔'));
     this.btnRight.innerHTML = (node.attrs.iconRight != null ? node.attrs.iconRight : (this.options.alignMenuIcons?.right ?? '⟹'));
     this.btnClear.innerHTML = (node.attrs.iconClear != null ? node.attrs.iconClear : (this.options.alignMenuIcons?.clear ?? 'x'));
     this.btnView.innerHTML = (node.attrs.iconView != null ? node.attrs.iconView : (this.options.alignMenuIcons?.preview ?? '🔍'));
+    this.btnSize50.textContent = '50%';
+    this.btnSize100.textContent = '100%';
 
     this.btnLeft.addEventListener('click', () => this.applyAlignAttr('left'));
     this.btnCenter.addEventListener('click', () => this.applyAlignAttr('center'));
     this.btnRight.addEventListener('click', () => this.applyAlignAttr('right'));
     this.btnClear.addEventListener('click', () => this.applyAlignAttr(null));
     this.btnView.addEventListener('click', () => this.openModal());
+    this.btnSize50.addEventListener('click', () => this.applyResizePercent(0.5));
+    this.btnSize100.addEventListener('click', () => this.applyResizePercent(1));
 
-    this.menu.appendChild(this.btnLeft);
-    this.menu.appendChild(this.btnCenter);
-    this.menu.appendChild(this.btnRight);
-    this.menu.appendChild(this.btnClear);
-    this.menu.appendChild(this.btnView);
+    const hidden = this.options.alignMenuButtonsHide || {};
+    if (!hidden.left) this.menu.appendChild(this.btnLeft);
+    if (!hidden.center) this.menu.appendChild(this.btnCenter);
+    if (!hidden.right) this.menu.appendChild(this.btnRight);
+    if (!hidden.clear) this.menu.appendChild(this.btnClear);
+    if (!hidden.preview) this.menu.appendChild(this.btnView);
+    if (!hidden.size50) this.menu.appendChild(this.btnSize50);
+    if (!hidden.size100) this.menu.appendChild(this.btnSize100);
     
 
     this.updateMenuPosition(node.attrs.alignMenuPosition != null ? node.attrs.alignMenuPosition : (this.options && this.options.alignMenuPosition != null ? this.options.alignMenuPosition : 'below'));
@@ -529,3 +538,11 @@ export const TiptapIzzyExtensionResizableImage = Node.create({
     ];
   },
 });
+    this.applyResizePercent = (percent) => {
+      const naturalW = this.img.naturalWidth || Math.round(this.img.getBoundingClientRect().width);
+      const targetW = Math.max(20, Math.round(naturalW * percent));
+      const targetH = this.aspect ? Math.round(targetW / this.aspect) : Math.round(this.img.getBoundingClientRect().height);
+      const pos = this.getPos();
+      const tr = this.view.state.tr.setNodeMarkup(pos, null, { ...this.node.attrs, width: targetW, height: targetH });
+      this.view.dispatch(tr);
+    };
