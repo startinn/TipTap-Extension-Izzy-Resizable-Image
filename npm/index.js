@@ -467,6 +467,33 @@ export const TiptapIzzyExtensionResizableImage = Node.create({
             },
           },
         },
+        appendTransaction: (transactions, oldState, newState) => {
+          const imgType = newState.schema.nodes.image
+          const resizeType = newState.schema.nodes[this.name]
+          if (!imgType || !resizeType) return null
+          let tr = newState.tr
+          let changed = false
+          newState.doc.descendants((node, pos) => {
+            if (node.type === imgType) {
+              tr = tr.setNodeMarkup(pos, resizeType, {
+                src: node.attrs.src,
+                alt: node.attrs.alt,
+                title: node.attrs.title,
+                width: node.attrs.width,
+                height: node.attrs.height ?? this.options.height,
+                showAlignMenu: this.options.showAlignMenu,
+                alignMenuPosition: this.options.alignMenuPosition,
+                iconLeft: this.options.alignMenuIcons?.left,
+                iconCenter: this.options.alignMenuIcons?.center,
+                iconRight: this.options.alignMenuIcons?.right,
+                iconClear: this.options.alignMenuIcons?.clear,
+                iconView: this.options.alignMenuIcons?.preview,
+              })
+              changed = true
+            }
+          })
+          return changed ? tr : null
+        },
       }),
     ]
   },
