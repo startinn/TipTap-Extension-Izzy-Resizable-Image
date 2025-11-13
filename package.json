@@ -15,7 +15,7 @@
   ],
   "repository": {
     "type": "git",
-    "url": "https://github.com/BernanR/TipTap-Extension-Izzy-Resizable-Image.git"
+    "url": "git+https://github.com/startinn/TipTap-Extension-Izzy-Resizable-Image.git"
   },
   "keywords": [
     "tiptap",
