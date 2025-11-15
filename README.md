@@ -123,6 +123,8 @@ These can be set per-node, overriding options.
 - `title: string | null`
 - `width: number | null` — width in px.
 - `height: number | null` — height in px.
+- `id: string | null` — applied to the `<img>` element.
+- `class: string | null` — applied to the `<img>` element.
 - `align: 'left' | 'center' | 'right' | null` — alignment.
 - `showAlignMenu: boolean | null` — show/hide menu per node.
 - `alignMenuPosition: 'above' | 'below' | null`
@@ -136,7 +138,7 @@ Reference: `resizable-image.js:358-372`
 
 ## Commands
 
-- `insertResizableImage({ src, alt, title, width, height })`
+- `insertResizableImage({ src, alt, title, width, height, id, class })`
   - Inserts the resizable image node. Missing attrs fall back to options (e.g., `height`).
   - Reference: `resizable-image.js:398-416`
 
@@ -181,3 +183,13 @@ Reference: `resizable-image.js:358-372`
 
 - The extension is inline and draggable; selection toggles menu/handles.
 - Deselecting removes the overlay/menu from the DOM to keep markup clean.
+### Example with `id` and `class`
+
+```js
+editor.commands.insertResizableImage({
+  src: 'https://picsum.photos/300/200',
+  width: 300,
+  id: 'hero-image',
+  class: 'rounded shadow'
+});
+```
