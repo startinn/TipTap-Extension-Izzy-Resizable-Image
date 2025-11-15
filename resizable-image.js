@@ -62,6 +62,9 @@ class ResizableImageView {
     this.img.style.userSelect = 'none';
     this.img.style.pointerEvents = 'none'; // allow handles to capture
 
+    if (node.attrs.id) this.img.id = node.attrs.id;
+    if (node.attrs.class) this.img.className = node.attrs.class;
+
     if (node.attrs.width) this.img.style.width = node.attrs.width + 'px';
     if (node.attrs.height) {
       this.img.style.height = node.attrs.height + 'px';
@@ -335,6 +338,8 @@ class ResizableImageView {
     // update image attributes
     if (node.attrs.src !== this.img.src) this.img.src = node.attrs.src;
     this.img.alt = node.attrs.alt || '';
+    if (node.attrs.id) this.img.id = node.attrs.id; else this.img.removeAttribute('id');
+    this.img.className = node.attrs.class || '';
     if (node.attrs.width) this.img.style.width = node.attrs.width + 'px';
     else this.img.style.removeProperty('width');
     if (node.attrs.height) this.img.style.height = node.attrs.height + 'px';
@@ -430,6 +435,8 @@ export const TiptapIzzyExtensionResizableImage = Node.create({
       title: { default: null },
       width: { default: null },
       height: { default: null },
+      id: { default: null },
+      class: { default: null },
       align: { default: 'left' },
       showAlignMenu: { default: null },
       alignMenuPosition: { default: null },
@@ -464,7 +471,7 @@ export const TiptapIzzyExtensionResizableImage = Node.create({
   addCommands() {
     return {
       insertResizableImage:
-        ({ src, alt, title, width, height }) => ({ commands }) => {
+        ({ src, alt, title, width, height, id, class: className }) => ({ commands }) => {
           return commands.insertContent({
             type: this.name,
             attrs: {
@@ -473,6 +480,8 @@ export const TiptapIzzyExtensionResizableImage = Node.create({
               title,
               width,
               height: height != null ? height : this.options.height,
+              id,
+              class: className,
               showAlignMenu: this.options.showAlignMenu,
               alignMenuPosition: this.options.alignMenuPosition,
               iconLeft: this.options.alignMenuIcons?.left,
