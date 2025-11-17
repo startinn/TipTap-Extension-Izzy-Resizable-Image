@@ -357,7 +357,7 @@ export const TiptapIzzyExtensionResizableImage = Node.create({
       height: { default: null },
       id: { default: null },
       class: { default: null },
-      align: { default: 'left' },
+      align: { default: null },
       showAlignMenu: { default: null },
       alignMenuPosition: { default: null },
       iconLeft: { default: null },

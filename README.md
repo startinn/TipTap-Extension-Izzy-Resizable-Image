@@ -4,6 +4,8 @@ Resizable inline image node for TipTap v2 with eight resize handles, optional al
 
 Demo: https://startinn.github.io/TipTap-Extension-Izzy-Resizable-Image/
 
+Download: https://www.npmjs.com/package/tiptap-extension-izzy-resizable-image
+
 ## Features
 
 - Inline resizable image with 8 handles (nw, n, ne, e, se, s, sw, w)

@@ -14,6 +14,7 @@
   </head>
   <body>
     <h1>tiptap-izzy-extension-resizable-image</h1>
+    <p><a href="https://www.npmjs.com/package/tiptap-extension-izzy-resizable-image" target="_blank" rel="noopener">Download on npm</a></p>
     <p>Use Shift while dragging to keep aspect ratio. Images are draggable to reposition.</p>
 
     <div class="toolbar">
@@ -72,7 +73,7 @@
             },
           }),
         ],
-        content: '<p>Try inserting an image and then resize it using the 8 handles.</p>',
+        content: '<p><img src="https://picsum.photos/400/300" align="null" /><img src="https://picsum.photos/400/300" align="null" /></p><p>Try inserting an image and then resize it using the 8 handles.</p>',
       });
 
       const applyAlign = (align) => {
@@ -87,7 +88,7 @@
 
       document.getElementById('insert').addEventListener('click', () => {
         const url = document.getElementById('image-url').value || 'https://picsum.photos/300/200';
-        editor.commands.insertResizableImage({ src: url, width: 300 });
+        editor.commands.insertResizableImage({ src: url, width: 300, id: 'image-' + Date.now() });
       });
 
       document.getElementById('clear').addEventListener('click', () => {
