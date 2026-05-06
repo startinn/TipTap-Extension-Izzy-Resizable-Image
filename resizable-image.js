@@ -43,6 +43,11 @@ function toFiniteNumber(value) {
   return Number.isFinite(n) ? n : null;
 }
 
+function isWidth100Percent(value) {
+  if (value == null) return false;
+  return String(value).trim() === '100%';
+}
+
 // Helper to map align to flex justification
 function getJustifyContentForAlign(align) {
   switch (align) {
@@ -255,13 +260,31 @@ class ResizableImageView {
   }
 
   applyInitialFitIfNeeded() {
-    if (this.options && this.options.autoFitWhenOversized === false) return;
-    if (this.node && this.node.attrs && this.node.attrs.width != null) return;
+    if (!this.img) return;
+
+    const maxAllowedWidth = toFiniteNumber(this.options && this.options.maxAllowedWidth);
+    const shouldAutoFit = !(this.options && this.options.autoFitWhenOversized === false);
+    if (!shouldAutoFit && maxAllowedWidth == null) return;
+
+    const attrWidth = this.node && this.node.attrs ? this.node.attrs.width : null;
+    if (isWidth100Percent(attrWidth)) return;
 
     const containerWidth = this.getEditorContentWidth();
-    if (!containerWidth || !this.img || !this.img.naturalWidth) return;
+    if (!containerWidth) return;
 
-    if (this.img.naturalWidth <= containerWidth) return;
+    let limitWidth = shouldAutoFit ? containerWidth : null;
+    if (maxAllowedWidth != null) {
+      limitWidth = limitWidth == null ? maxAllowedWidth : Math.min(limitWidth, maxAllowedWidth);
+    }
+    if (limitWidth == null) return;
+
+    const currentWidth =
+      toFiniteNumber(attrWidth) ||
+      this.img.naturalWidth ||
+      Math.round(this.img.getBoundingClientRect().width);
+    if (!currentWidth) return;
+
+    if (currentWidth <= limitWidth) return;
 
     applyDimensionStyle(this.img, 'width', '100%');
     applyDimensionStyle(this.img, 'height', 'auto');
@@ -325,6 +348,17 @@ class ResizableImageView {
     const targetW = Math.max(20, Math.round(naturalW * percent));
     const targetH = this.aspect ? Math.round(targetW / this.aspect) : Math.round(this.img.getBoundingClientRect().height);
     const pos = this.getPos();
+    const maxAllowedWidth = toFiniteNumber(this.options && this.options.maxAllowedWidth);
+    if (maxAllowedWidth != null && targetW > maxAllowedWidth) {
+      const tr = this.view.state.tr.setNodeMarkup(pos, null, {
+        ...this.node.attrs,
+        width: '100%',
+        height: 'auto',
+      });
+      this.view.dispatch(tr);
+      return;
+    }
+
     const tr = this.view.state.tr.setNodeMarkup(pos, null, {
       ...this.node.attrs,
       width: targetW,
@@ -398,11 +432,22 @@ class ResizableImageView {
     const finalRect = this.img.getBoundingClientRect();
     const newWidth = Math.round(finalRect.width);
     const newHeight = Math.round(finalRect.height);
+    const maxAllowedWidth = toFiniteNumber(this.options && this.options.maxAllowedWidth);
 
     this.dragging = null;
 
     // Persist new attrs to document
     const pos = this.getPos();
+    if (maxAllowedWidth != null && newWidth > maxAllowedWidth) {
+      const tr = this.view.state.tr.setNodeMarkup(pos, null, {
+        ...this.node.attrs,
+        width: '100%',
+        height: 'auto',
+      });
+      this.view.dispatch(tr);
+      return;
+    }
+
     const tr = this.view.state.tr.setNodeMarkup(pos, null, {
       ...this.node.attrs,
       width: newWidth,
@@ -547,6 +592,7 @@ export const TiptapIzzyExtensionResizableImage = Node.create({
       alignMenuIcons: { left: '⟸', center: '⇔', right: '⟹', clear: 'x' },
       fitToContainerSelector: '.tiptap',
       autoFitWhenOversized: true,
+      maxAllowedWidth: null,
     };
   },
 

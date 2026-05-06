@@ -95,6 +95,7 @@ const editor = new Editor({
           },
           fitToContainerSelector: '.tiptap',
           autoFitWhenOversized: true,
+          maxAllowedWidth: null,
         };
       },
     }),
@@ -114,6 +115,7 @@ editor.commands.insertResizableImage({ src: 'https://picsum.photos/300/200', wid
 - `alignMenuButtonsHide: Record<string, boolean>` — hide specific buttons when `true` (supports `left`, `center`, `right`, `clear`, `preview`, `size50`, `size100`).
 - `fitToContainerSelector: string` — CSS selector used as width reference for the initial image fit (default: `.tiptap`).
 - `autoFitWhenOversized: boolean` — when `true`, oversized images inserted without explicit width are automatically set to `width: 100%` and `height: auto` (default: `true`).
+- `maxAllowedWidth: number | null` — maximum allowed width in pixels. If image width exceeds this value, it is forced to `width: 100%` and `height: auto`.
 
 Reference:
 - Defined in `resizable-image.js:387-394`
