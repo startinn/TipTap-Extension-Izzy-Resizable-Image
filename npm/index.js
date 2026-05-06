@@ -9,13 +9,45 @@ function createHandle(direction) {
   return handle
 }
 
+function applyDimensionStyle(el, property, value) {
+  if (value == null || value === '') {
+    el.style.removeProperty(property)
+    return
+  }
+
+  if (typeof value === 'number') {
+    el.style[property] = value + 'px'
+    return
+  }
+
+  const raw = String(value).trim()
+  if (!raw) {
+    el.style.removeProperty(property)
+    return
+  }
+
+  if (/^\d+(\.\d+)?$/.test(raw)) {
+    el.style[property] = raw + 'px'
+    return
+  }
+
+  el.style[property] = raw
+}
+
+function toFiniteNumber(value) {
+  const n = Number(value)
+  return Number.isFinite(n) ? n : null
+}
+
 class ResizableImageView {
   constructor(node, view, getPos, options) {
     this.node = node
     this.view = view
     this.getPos = getPos
     this.options = options || {}
-    this.aspect = (node.attrs.height && node.attrs.width) ? node.attrs.width / node.attrs.height : null
+    const initialWidth = toFiniteNumber(node.attrs.width)
+    const initialHeight = toFiniteNumber(node.attrs.height)
+    this.aspect = (initialWidth && initialHeight) ? initialWidth / initialHeight : null
 
     this.dom = document.createElement('span')
     this.dom.className = 'tiptap-izzy-resizable-image'
@@ -43,16 +75,17 @@ class ResizableImageView {
     this.img.style.pointerEvents = 'none'
     if (node.attrs.id) this.img.id = node.attrs.id
     if (node.attrs.class) this.img.className = node.attrs.class
-    if (node.attrs.width) this.img.style.width = node.attrs.width + 'px'
+    applyDimensionStyle(this.img, 'width', node.attrs.width)
     if (node.attrs.height) {
-      this.img.style.height = node.attrs.height + 'px'
+      applyDimensionStyle(this.img, 'height', node.attrs.height)
     } else if (this.options && this.options.height) {
-      this.img.style.height = this.options.height + 'px'
+      applyDimensionStyle(this.img, 'height', this.options.height)
     }
     this.img.addEventListener('load', () => {
       if (!this.aspect && this.img.naturalWidth && this.img.naturalHeight) {
         this.aspect = this.img.naturalWidth / this.img.naturalHeight
       }
+      this.applyInitialFitIfNeeded()
     })
     this.inner.appendChild(this.img)
 
@@ -158,6 +191,50 @@ class ResizableImageView {
     })
     modalClose.addEventListener('click', () => this.closeModal())
 
+  }
+
+  getEditorContentWidth() {
+    const selector = this.options?.fitToContainerSelector
+    const root = this.view?.dom || this.dom?.parentElement
+    if (!root) return null
+
+    if (selector) {
+      const bySelector = root.closest?.(selector) || root.querySelector?.(selector)
+      if (bySelector) {
+        const w = Math.round(bySelector.getBoundingClientRect().width)
+        if (w > 0) return w
+      }
+    }
+
+    const tiptap = this.dom?.closest?.('.tiptap') || root.closest?.('.tiptap') || root.querySelector?.('.tiptap')
+    if (tiptap) {
+      const w = Math.round(tiptap.getBoundingClientRect().width)
+      if (w > 0) return w
+    }
+
+    const rootWidth = Math.round(root.getBoundingClientRect().width)
+    return rootWidth > 0 ? rootWidth : null
+  }
+
+  applyInitialFitIfNeeded() {
+    if (this.options?.autoFitWhenOversized === false) return
+    if (this.node?.attrs?.width != null) return
+
+    const containerWidth = this.getEditorContentWidth()
+    if (!containerWidth || !this.img?.naturalWidth) return
+
+    if (this.img.naturalWidth <= containerWidth) return
+
+    applyDimensionStyle(this.img, 'width', '100%')
+    applyDimensionStyle(this.img, 'height', 'auto')
+
+    const pos = this.getPos()
+    const tr = this.view.state.tr.setNodeMarkup(pos, null, {
+      ...this.node.attrs,
+      width: '100%',
+      height: 'auto',
+    })
+    this.view.dispatch(tr)
   }
 
   updateMenuPosition(pos) {
@@ -270,10 +347,8 @@ class ResizableImageView {
     this.node = node
     if (node.attrs.src !== this.img.src) this.img.src = node.attrs.src
     this.img.alt = node.attrs.alt || ''
-    if (node.attrs.width) this.img.style.width = node.attrs.width + 'px'
-    else this.img.style.removeProperty('width')
-    if (node.attrs.height) this.img.style.height = node.attrs.height + 'px'
-    else this.img.style.removeProperty('height')
+    applyDimensionStyle(this.img, 'width', node.attrs.width)
+    applyDimensionStyle(this.img, 'height', node.attrs.height)
     this.applyAlignment(node.attrs.align)
     this.updateMenuPosition(node.attrs.alignMenuPosition != null ? node.attrs.alignMenuPosition : (this.options && this.options.alignMenuPosition != null ? this.options.alignMenuPosition : 'below'))
     this.btnLeft.innerHTML = (node.attrs.iconLeft != null ? node.attrs.iconLeft : (this.options && this.options.alignMenuIcons ? this.options.alignMenuIcons.left : '⟸'))
@@ -281,7 +356,9 @@ class ResizableImageView {
     this.btnRight.innerHTML = (node.attrs.iconRight != null ? node.attrs.iconRight : (this.options && this.options.alignMenuIcons ? this.options.alignMenuIcons.right : '⟹'))
     this.btnClear.innerHTML = (node.attrs.iconClear != null ? node.attrs.iconClear : (this.options && this.options.alignMenuIcons ? this.options.alignMenuIcons.clear : 'x'))
     if (this.btnView) this.btnView.innerHTML = (node.attrs.iconView != null ? node.attrs.iconView : (this.options && this.options.alignMenuIcons ? this.options.alignMenuIcons.preview : '🔍'))
-    this.aspect = (node.attrs.height && node.attrs.width) ? node.attrs.width / node.attrs.height : this.aspect
+    const widthNum = toFiniteNumber(node.attrs.width)
+    const heightNum = toFiniteNumber(node.attrs.height)
+    this.aspect = (widthNum && heightNum) ? widthNum / heightNum : this.aspect
     return true
   }
 
@@ -387,6 +464,8 @@ export const TiptapIzzyExtensionResizableImage = Node.create({
       alignMenuPosition: 'below',
       alignMenuIcons: { left: '⟸', center: '⇔', right: '⟹', clear: 'x', preview: '🔍' },
       alignMenuButtonsHide: {},
+      fitToContainerSelector: '.tiptap',
+      autoFitWhenOversized: true,
     }
   },
 

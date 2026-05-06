@@ -13,6 +13,36 @@ function createHandle(direction) {
   return handle;
 }
 
+function applyDimensionStyle(el, property, value) {
+  if (value == null || value === '') {
+    el.style.removeProperty(property);
+    return;
+  }
+
+  if (typeof value === 'number') {
+    el.style[property] = value + 'px';
+    return;
+  }
+
+  const raw = String(value).trim();
+  if (!raw) {
+    el.style.removeProperty(property);
+    return;
+  }
+
+  if (/^\d+(\.\d+)?$/.test(raw)) {
+    el.style[property] = raw + 'px';
+    return;
+  }
+
+  el.style[property] = raw;
+}
+
+function toFiniteNumber(value) {
+  const n = Number(value);
+  return Number.isFinite(n) ? n : null;
+}
+
 // Helper to map align to flex justification
 function getJustifyContentForAlign(align) {
   switch (align) {
@@ -29,8 +59,10 @@ class ResizableImageView {
     this.view = view;
     this.getPos = getPos;
     this.options = options || {};
-    this.aspect = (node.attrs.height && node.attrs.width)
-      ? node.attrs.width / node.attrs.height
+    const initialWidth = toFiniteNumber(node.attrs.width);
+    const initialHeight = toFiniteNumber(node.attrs.height);
+    this.aspect = (initialWidth && initialHeight)
+      ? initialWidth / initialHeight
       : null;
 
     // Top-level NodeView element acts as container
@@ -65,11 +97,11 @@ class ResizableImageView {
     if (node.attrs.id) this.img.id = node.attrs.id;
     if (node.attrs.class) this.img.className = node.attrs.class;
 
-    if (node.attrs.width) this.img.style.width = node.attrs.width + 'px';
+    applyDimensionStyle(this.img, 'width', node.attrs.width);
     if (node.attrs.height) {
-      this.img.style.height = node.attrs.height + 'px';
+      applyDimensionStyle(this.img, 'height', node.attrs.height);
     } else if (this.options && this.options.height) {
-      this.img.style.height = this.options.height + 'px';
+      applyDimensionStyle(this.img, 'height', this.options.height);
     }
 
     // Initialize aspect ratio from natural image size if not provided
@@ -77,6 +109,7 @@ class ResizableImageView {
       if (!this.aspect && this.img.naturalWidth && this.img.naturalHeight) {
         this.aspect = this.img.naturalWidth / this.img.naturalHeight;
       }
+      this.applyInitialFitIfNeeded();
     });
     this.inner.appendChild(this.img);
 
@@ -194,6 +227,52 @@ class ResizableImageView {
       if (ev.target === this.modalOverlay) this.closeModal();
     });
     modalClose.addEventListener('click', () => this.closeModal());
+  }
+
+  getEditorContentWidth() {
+    const selector = this.options && this.options.fitToContainerSelector;
+    const root = this.view && this.view.dom ? this.view.dom : (this.dom ? this.dom.parentElement : null);
+    if (!root) return null;
+
+    if (selector) {
+      const bySelector = (root.closest && root.closest(selector)) || (root.querySelector && root.querySelector(selector));
+      if (bySelector) {
+        const w = Math.round(bySelector.getBoundingClientRect().width);
+        if (w > 0) return w;
+      }
+    }
+
+    const tiptap = (this.dom && this.dom.closest && this.dom.closest('.tiptap')) ||
+      (root.closest && root.closest('.tiptap')) ||
+      (root.querySelector && root.querySelector('.tiptap'));
+    if (tiptap) {
+      const w = Math.round(tiptap.getBoundingClientRect().width);
+      if (w > 0) return w;
+    }
+
+    const rootWidth = Math.round(root.getBoundingClientRect().width);
+    return rootWidth > 0 ? rootWidth : null;
+  }
+
+  applyInitialFitIfNeeded() {
+    if (this.options && this.options.autoFitWhenOversized === false) return;
+    if (this.node && this.node.attrs && this.node.attrs.width != null) return;
+
+    const containerWidth = this.getEditorContentWidth();
+    if (!containerWidth || !this.img || !this.img.naturalWidth) return;
+
+    if (this.img.naturalWidth <= containerWidth) return;
+
+    applyDimensionStyle(this.img, 'width', '100%');
+    applyDimensionStyle(this.img, 'height', 'auto');
+
+    const pos = this.getPos();
+    const tr = this.view.state.tr.setNodeMarkup(pos, null, {
+      ...this.node.attrs,
+      width: '100%',
+      height: 'auto',
+    });
+    this.view.dispatch(tr);
   }
 
   updateMenuPosition(pos) {
@@ -340,10 +419,8 @@ class ResizableImageView {
     this.img.alt = node.attrs.alt || '';
     if (node.attrs.id) this.img.id = node.attrs.id; else this.img.removeAttribute('id');
     this.img.className = node.attrs.class || '';
-    if (node.attrs.width) this.img.style.width = node.attrs.width + 'px';
-    else this.img.style.removeProperty('width');
-    if (node.attrs.height) this.img.style.height = node.attrs.height + 'px';
-    else this.img.style.removeProperty('height');
+    applyDimensionStyle(this.img, 'width', node.attrs.width);
+    applyDimensionStyle(this.img, 'height', node.attrs.height);
 
     // update alignment styles and menu
     this.applyAlignment(node.attrs.align);
@@ -355,8 +432,10 @@ class ResizableImageView {
     if (this.btnView) this.btnView.innerHTML = (node.attrs.iconView != null ? node.attrs.iconView : (this.options && this.options.alignMenuIcons ? this.options.alignMenuIcons.preview : '🔍'));
     if (this.modalImg) this.modalImg.src = this.img.src;
 
-    this.aspect = (node.attrs.height && node.attrs.width)
-      ? node.attrs.width / node.attrs.height
+    const widthNum = toFiniteNumber(node.attrs.width);
+    const heightNum = toFiniteNumber(node.attrs.height);
+    this.aspect = (widthNum && heightNum)
+      ? widthNum / heightNum
       : this.aspect;
     return true;
   }
@@ -466,6 +545,8 @@ export const TiptapIzzyExtensionResizableImage = Node.create({
       showAlignMenu: true,
       alignMenuPosition: 'below',
       alignMenuIcons: { left: '⟸', center: '⇔', right: '⟹', clear: 'x' },
+      fitToContainerSelector: '.tiptap',
+      autoFitWhenOversized: true,
     };
   },
 

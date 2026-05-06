@@ -93,6 +93,8 @@ const editor = new Editor({
             // size50: true,
             // size100: true,
           },
+          fitToContainerSelector: '.tiptap',
+          autoFitWhenOversized: true,
         };
       },
     }),
@@ -110,6 +112,8 @@ editor.commands.insertResizableImage({ src: 'https://picsum.photos/300/200', wid
 - `alignMenuPosition: 'above' | 'below'` — where the menu appears relative to the image.
 - `alignMenuIcons: { left: string, center: string, right: string, clear: string, preview: string }` — HTML strings for menu buttons.
 - `alignMenuButtonsHide: Record<string, boolean>` — hide specific buttons when `true` (supports `left`, `center`, `right`, `clear`, `preview`, `size50`, `size100`).
+- `fitToContainerSelector: string` — CSS selector used as width reference for the initial image fit (default: `.tiptap`).
+- `autoFitWhenOversized: boolean` — when `true`, oversized images inserted without explicit width are automatically set to `width: 100%` and `height: auto` (default: `true`).
 
 Reference:
 - Defined in `resizable-image.js:387-394`
