@@ -320,14 +320,15 @@ class ResizableImageView {
     this.menu.style.left = '';
     this.menu.style.right = '';
     this.menu.style.transform = '';
-    if (align === 'left') {
-      this.menu.style.left = '0px';
-    } else if (align === 'right') {
+    if (align === 'right') {
       this.menu.style.right = '0px';
-    } else {
-      // center or default
+    } else if (align === 'center') {
+      // Explicit center alignment
       this.menu.style.left = '50%';
       this.menu.style.transform = 'translateX(-50%)';
+    } else {
+      // left or default (no align)
+      this.menu.style.left = '0px';
     }
   }
 
