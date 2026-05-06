@@ -83,6 +83,7 @@ const editor = new Editor({
             clear: 'x',
             preview: '🔍',
           },
+          alignMenuOrder: ['left', 'center', 'right', 'clear', 'preview', 'size50', 'size100'],
           alignMenuButtonsHide: {
             // hide specific buttons if true
             // left: true,
@@ -112,6 +113,7 @@ editor.commands.insertResizableImage({ src: 'https://picsum.photos/300/200', wid
 - `showAlignMenu: boolean` — whether the inline alignment menu is shown by default.
 - `alignMenuPosition: 'above' | 'below'` — where the menu appears relative to the image.
 - `alignMenuIcons: { left: string, center: string, right: string, clear: string, preview: string }` — HTML strings for menu buttons.
+- `alignMenuOrder: string[]` — order of buttons in the alignment menu (default: `['left', 'center', 'right', 'clear', 'preview', 'size50', 'size100']`). Buttons are displayed in the order specified.
 - `alignMenuButtonsHide: Record<string, boolean>` — hide specific buttons when `true` (supports `left`, `center`, `right`, `clear`, `preview`, `size50`, `size100`).
 - `fitToContainerSelector: string` — CSS selector used as width reference for the initial image fit (default: `.tiptap`).
 - `autoFitWhenOversized: boolean` — when `true`, oversized images inserted without explicit width are automatically set to `width: 100%` and `height: auto` (default: `true`).

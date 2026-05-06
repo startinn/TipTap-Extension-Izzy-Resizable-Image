@@ -181,14 +181,26 @@ class ResizableImageView {
     this.btnSize50.addEventListener('click', () => this.applyResizePercent(0.5));
     this.btnSize100.addEventListener('click', () => this.applyResizePercent(1));
 
+    // Button map for ordering
+    const buttonMap = {
+      'left': this.btnLeft,
+      'center': this.btnCenter,
+      'right': this.btnRight,
+      'clear': this.btnClear,
+      'preview': this.btnView,
+      'size50': this.btnSize50,
+      'size100': this.btnSize100,
+    };
+
+    // Append buttons in the order specified by alignMenuOrder
     const hidden = this.options.alignMenuButtonsHide || {};
-    if (!hidden.left) this.menu.appendChild(this.btnLeft);
-    if (!hidden.center) this.menu.appendChild(this.btnCenter);
-    if (!hidden.right) this.menu.appendChild(this.btnRight);
-    if (!hidden.clear) this.menu.appendChild(this.btnClear);
-    if (!hidden.preview) this.menu.appendChild(this.btnView);
-    if (!hidden.size50) this.menu.appendChild(this.btnSize50);
-    if (!hidden.size100) this.menu.appendChild(this.btnSize100);
+    const order = this.options.alignMenuOrder || ['left', 'center', 'right', 'clear', 'preview', 'size50', 'size100'];
+    order.forEach(btnName => {
+      const btn = buttonMap[btnName];
+      if (btn && !hidden[btnName]) {
+        this.menu.appendChild(btn);
+      }
+    });
     
 
     const menuVerticalPos = node.attrs.alignMenuPosition != null ? node.attrs.alignMenuPosition : (this.options && this.options.alignMenuPosition != null ? this.options.alignMenuPosition : 'below');
@@ -611,6 +623,8 @@ export const TiptapIzzyExtensionResizableImage = Node.create({
       showAlignMenu: true,
       alignMenuPosition: 'below',
       alignMenuIcons: { left: '⟸', center: '⇔', right: '⟹', clear: 'x' },
+      alignMenuOrder: ['left', 'center', 'right', 'clear', 'preview', 'size50', 'size100'],
+      alignMenuButtonsHide: {},
       fitToContainerSelector: '.tiptap',
       autoFitWhenOversized: true,
       maxAllowedWidth: null,
