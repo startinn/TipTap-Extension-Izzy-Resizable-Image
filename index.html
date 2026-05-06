@@ -21,6 +21,10 @@
       <input type="text" id="image-url" placeholder="Image URL" style="width: 320px" />
       <button id="insert">Insert Image</button>
       <button id="clear">Clear</button>
+      <label style="display:flex; align-items:center; gap:6px; margin-left:8px;">
+        <input type="checkbox" id="auto-fit-toggle" checked />
+        Auto fit oversized image
+      </label>
       <label style="margin-left:16px; display:flex; align-items:center; gap:6px;">
         Align:
         <select id="align-select">
@@ -34,7 +38,7 @@
       </label>
     </div>
 
-    <div id="editor" class="editor"></div>
+    <div id="editor" class="editor" style="width: 500px;"></div>
 
     <script type="module">
       import { Editor } from 'https://esm.sh/@tiptap/core@2';
@@ -43,37 +47,52 @@
       // but if esm fails, starter kit still works for basic content.
       import { TiptapIzzyExtensionResizableImage } from './resizable-image.js';
 
-      const editor = new Editor({
-        element: document.querySelector('#editor'),
-        extensions: [
-          StarterKit,
-          TiptapIzzyExtensionResizableImage.extend({
-            addOptions() {
-              return {
-                height: 200,
-                showAlignMenu: true,
-                alignMenuPosition: 'below',
-                alignMenuIcons: { 
-                  left: '<i class="bi bi-text-left"></i>', 
-                  center: '<i class="bi bi-text-center"></i>', 
-                  right: '<i class="bi bi-text-right"></i>', 
-                  clear: '<i class="bi bi-text-wrap"></i>',
-                  preview: '<i class="bi bi-zoom-in"></i>'
-                },
-                alignMenuButtonsHide: {
-                  // left: true,
-                  // right: true,
-                  // center: true,
-                  // clear: true,
-                  // preview: true,
-                  // size50: true,
-                  size100: true,
-                },
-              };
-            },
-          }),
-        ],
-        content: '<p><img src="https://picsum.photos/400/300" align="null" /><img src="https://picsum.photos/400/300" align="null" /></p><p>Try inserting an image and then resize it using the 8 handles.</p>',
+      const editorElement = document.querySelector('#editor');
+      const autoFitToggle = document.getElementById('auto-fit-toggle');
+      const initialContent = '<p><img src="https://picsum.photos/400/300" align="null" /><img src="https://picsum.photos/400/300" align="null" /></p><p>Try inserting an image and then resize it using the 8 handles.</p>';
+      let editor;
+
+      const createEditor = (content = initialContent, autoFitWhenOversized = true) => {
+        return new Editor({
+          element: editorElement,
+          extensions: [
+            StarterKit,
+            TiptapIzzyExtensionResizableImage.extend({
+              addOptions() {
+                return {
+                  showAlignMenu: true,
+                  alignMenuPosition: 'below',
+                  alignMenuIcons: {
+                    left: '<i class="bi bi-text-left"></i>',
+                    center: '<i class="bi bi-text-center"></i>',
+                    right: '<i class="bi bi-text-right"></i>',
+                    clear: '<i class="bi bi-text-wrap"></i>',
+                    preview: '<i class="bi bi-zoom-in"></i>'
+                  },
+                  alignMenuButtonsHide: {
+                    // left: true,
+                    // right: true,
+                    // center: true,
+                    // clear: true,
+                    // preview: true,
+                    // size50: true,
+                    size100: true,
+                  },
+                  autoFitWhenOversized : false,
+                };
+              },
+            }),
+          ],
+          content,
+        });
+      };
+
+      editor = createEditor(initialContent, autoFitToggle.checked);
+
+      autoFitToggle.addEventListener('change', (e) => {
+        const currentContent = editor.getHTML();
+        editor.destroy();
+        editor = createEditor(currentContent, e.target.checked);
       });
 
       const applyAlign = (align) => {
@@ -88,7 +107,7 @@
 
       document.getElementById('insert').addEventListener('click', () => {
         const url = document.getElementById('image-url').value || 'https://picsum.photos/300/200';
-        editor.commands.insertResizableImage({ src: url, width: 300, id: 'image-' + Date.now() });
+        editor.commands.insertResizableImage({ src: url, id: 'image-' + Date.now() });
       });
 
       document.getElementById('clear').addEventListener('click', () => {
