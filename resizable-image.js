@@ -164,6 +164,8 @@ class ResizableImageView {
     this.btnView = document.createElement('button');
     this.btnSize50 = document.createElement('button');
     this.btnSize100 = document.createElement('button');
+    this.btnCopy = document.createElement('button');
+    this.btnCopyUrl = document.createElement('button');
 
     this.btnLeft.innerHTML = (node.attrs.iconLeft != null ? node.attrs.iconLeft : (this.options.alignMenuIcons?.left ?? '⟸'));
     this.btnCenter.innerHTML = (node.attrs.iconCenter != null ? node.attrs.iconCenter : (this.options.alignMenuIcons?.center ?? '⇔'));
@@ -172,6 +174,28 @@ class ResizableImageView {
     this.btnView.innerHTML = (node.attrs.iconView != null ? node.attrs.iconView : (this.options.alignMenuIcons?.preview ?? '🔍'));
     this.btnSize50.textContent = '50%';
     this.btnSize100.textContent = '100%';
+    this.btnCopy.innerHTML = '<i class="bi bi-clipboard" aria-hidden="true"></i>';
+    this.btnCopyUrl.innerHTML = '<i class="bi bi-link-45deg" aria-hidden="true"></i>';
+
+    const toolbarButtonTitles = [
+      [this.btnLeft, 'Alinhar imagem à esquerda'],
+      [this.btnCenter, 'Centralizar imagem'],
+      [this.btnRight, 'Alinhar imagem à direita'],
+      [this.btnClear, 'Remover alinhamento da imagem'],
+      [this.btnView, 'Ampliar imagem'],
+      [this.btnSize50, 'Redimensionar imagem para 50%'],
+      [this.btnSize100, 'Ajustar imagem para 100%'],
+      [this.btnCopy, 'Copiar imagem para a área de transferência'],
+      [this.btnCopyUrl, 'Copiar URL da imagem para a área de transferência'],
+    ];
+    toolbarButtonTitles.forEach(([button, title]) => {
+      button.title = title;
+      button.setAttribute('aria-label', title);
+    });
+    [this.btnCopy, this.btnCopyUrl].forEach((button) => {
+      button.dataset.originalIcon = button.innerHTML;
+      button.dataset.originalTitle = button.title;
+    });
 
     this.btnLeft.addEventListener('click', () => this.applyAlignAttr('left'));
     this.btnCenter.addEventListener('click', () => this.applyAlignAttr('center'));
@@ -180,6 +204,8 @@ class ResizableImageView {
     this.btnView.addEventListener('click', () => this.openModal());
     this.btnSize50.addEventListener('click', () => this.applyResizePercent(0.5));
     this.btnSize100.addEventListener('click', () => this.applyResizePercent(1));
+    this.btnCopy.addEventListener('click', () => this.copyImageToClipboard());
+    this.btnCopyUrl.addEventListener('click', () => this.copyImageUrlToClipboard());
 
     // Button map for ordering
     const buttonMap = {
@@ -190,11 +216,13 @@ class ResizableImageView {
       'preview': this.btnView,
       'size50': this.btnSize50,
       'size100': this.btnSize100,
+      'copy': this.btnCopy,
+      'copyUrl': this.btnCopyUrl,
     };
 
     // Append buttons in the order specified by alignMenuOrder
     const hidden = this.options.alignMenuButtonsHide || {};
-    const order = this.options.alignMenuOrder || ['left', 'center', 'right', 'clear', 'preview', 'size50', 'size100'];
+    const order = this.options.alignMenuOrder || ['left', 'center', 'right', 'clear', 'preview', 'size50', 'size100', 'copy', 'copyUrl'];
     order.forEach(btnName => {
       const btn = buttonMap[btnName];
       if (btn && !hidden[btnName]) {
@@ -234,6 +262,15 @@ class ResizableImageView {
     this.modalImg.style.maxWidth = '90vw';
     this.modalImg.style.maxHeight = '90vh';
     this.modalImg.style.boxShadow = '0 8px 24px rgba(0,0,0,0.5)';
+    this.modalScale = 1;
+    this.modalImg.style.transformOrigin = 'center';
+    this.modalImg.style.transition = 'transform 120ms ease-out';
+    this.modalImg.addEventListener('wheel', (event) => {
+      event.preventDefault();
+      const zoomFactor = Math.exp(-event.deltaY * 0.001);
+      this.modalScale = Math.min(4, Math.max(0.25, this.modalScale * zoomFactor));
+      this.modalImg.style.transform = `scale(${this.modalScale})`;
+    }, { passive: false });
     const modalClose = document.createElement('button');
     modalClose.textContent = '✕';
     modalClose.style.position = 'absolute';
@@ -320,12 +357,12 @@ class ResizableImageView {
     this.menu.classList.remove('menu-above', 'menu-below');
     if (verticalPos === 'above') {
       this.menu.classList.add('menu-above');
-      this.menu.style.top = '-32px';
-      this.menu.style.bottom = '';
+      this.menu.style.top = '';
+      this.menu.style.bottom = 'calc(100% + 12px)';
     } else {
       this.menu.classList.add('menu-below');
-      this.menu.style.bottom = '-32px';
-      this.menu.style.top = '';
+      this.menu.style.top = 'calc(100% + 12px)';
+      this.menu.style.bottom = '';
     }
 
     // Horizontal positioning based on image alignment
@@ -559,11 +596,84 @@ class ResizableImageView {
   }
 
   openModal() {
+    this.modalScale = 1;
+    this.modalImg.style.transform = 'scale(1)';
     if (!this.modalOverlay.parentNode) document.body.appendChild(this.modalOverlay);
   }
 
   closeModal() {
     if (this.modalOverlay && this.modalOverlay.parentNode) this.modalOverlay.parentNode.removeChild(this.modalOverlay);
+  }
+
+  async loadImageAsPng() {
+    const response = await fetch(this.img.currentSrc || this.img.src);
+    if (!response.ok) throw new Error('Unable to fetch image');
+
+    const imageBlob = await response.blob();
+    if (imageBlob.type === 'image/png') return imageBlob;
+
+    const imageBitmap = await createImageBitmap(imageBlob);
+    const canvas = document.createElement('canvas');
+    canvas.width = imageBitmap.width;
+    canvas.height = imageBitmap.height;
+    const context = canvas.getContext('2d');
+    if (!context) {
+      imageBitmap.close();
+      throw new Error('Unable to create image canvas');
+    }
+    context.drawImage(imageBitmap, 0, 0);
+    imageBitmap.close();
+
+    return new Promise((resolve, reject) => {
+      canvas.toBlob((blob) => {
+        if (blob) resolve(blob);
+        else reject(new Error('Unable to convert image to PNG'));
+      }, 'image/png');
+    });
+  }
+
+  async copyImageToClipboard() {
+    try {
+      if (!navigator.clipboard?.write || typeof ClipboardItem === 'undefined') {
+        throw new Error('Image clipboard is not supported');
+      }
+      const imagePromise = this.loadImageAsPng();
+      await navigator.clipboard.write([
+        new ClipboardItem({ 'image/png': imagePromise }),
+      ]);
+      this.showCopyFeedback(this.btnCopy, 'Imagem copiada', true);
+    } catch (error) {
+      console.error('Unable to copy image to clipboard', error);
+      this.showCopyFeedback(this.btnCopy, 'Falha ao copiar imagem');
+    }
+  }
+
+  async copyImageUrlToClipboard() {
+    try {
+      if (!navigator.clipboard?.writeText) {
+        throw new Error('Text clipboard is not supported');
+      }
+      await navigator.clipboard.writeText(this.node.attrs.src || this.img.currentSrc || this.img.src);
+      this.showCopyFeedback(this.btnCopyUrl, 'URL copiada', true);
+    } catch (error) {
+      console.error('Unable to copy image URL to clipboard', error);
+      this.showCopyFeedback(this.btnCopyUrl, 'Falha ao copiar URL');
+    }
+  }
+
+  showCopyFeedback(button, message, copied = false) {
+    if (button.copyFeedbackTimeout) window.clearTimeout(button.copyFeedbackTimeout);
+    button.title = message;
+    if (copied) {
+      button.innerHTML = '<i class="bi bi-check-lg" style="color: #198754" aria-hidden="true"></i>';
+    }
+    button.copyFeedbackTimeout = window.setTimeout(() => {
+      if (button.isConnected) {
+        button.innerHTML = button.dataset.originalIcon;
+        button.title = button.dataset.originalTitle;
+      }
+      delete button.copyFeedbackTimeout;
+    }, 3000);
   }
 
   stopEvent(event) {
@@ -623,7 +733,7 @@ export const TiptapIzzyExtensionResizableImage = Node.create({
       showAlignMenu: true,
       alignMenuPosition: 'below',
       alignMenuIcons: { left: '⟸', center: '⇔', right: '⟹', clear: 'x' },
-      alignMenuOrder: ['left', 'center', 'right', 'clear', 'preview', 'size50', 'size100'],
+      alignMenuOrder: ['left', 'center', 'right', 'clear', 'preview', 'size50', 'size100', 'copy', 'copyUrl'],
       alignMenuButtonsHide: {},
       fitToContainerSelector: '.tiptap',
       autoFitWhenOversized: true,

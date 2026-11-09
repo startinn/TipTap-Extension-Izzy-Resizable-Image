@@ -13,6 +13,8 @@ Download: https://www.npmjs.com/package/tiptap-extension-izzy-resizable-image
 - Optional inline alignment menu (left, center, right, clear)
 - Menu position configurable (`above` or `below`)
 - Keeps aspect ratio while resizing
+- Preview modal supports mouse-wheel zoom from 0.25x to 4x
+- Copies the image as PNG or copies its URL from the alignment menu
 - Menu icons accept HTML strings (e.g., `<i class="...">`)
 - Deselects image and hides UI when clicking outside
 
@@ -83,7 +85,7 @@ const editor = new Editor({
             clear: 'x',
             preview: '🔍',
           },
-          alignMenuOrder: ['left', 'center', 'right', 'clear', 'preview', 'size50', 'size100'],
+          alignMenuOrder: ['left', 'center', 'right', 'clear', 'preview', 'size50', 'size100', 'copy', 'copyUrl'],
           alignMenuButtonsHide: {
             // hide specific buttons if true
             // left: true,
@@ -113,11 +115,13 @@ editor.commands.insertResizableImage({ src: 'https://picsum.photos/300/200', wid
 - `showAlignMenu: boolean` — whether the inline alignment menu is shown by default.
 - `alignMenuPosition: 'above' | 'below'` — where the menu appears relative to the image.
 - `alignMenuIcons: { left: string, center: string, right: string, clear: string, preview: string }` — HTML strings for menu buttons.
-- `alignMenuOrder: string[]` — order of buttons in the alignment menu (default: `['left', 'center', 'right', 'clear', 'preview', 'size50', 'size100']`). Buttons are displayed in the order specified.
-- `alignMenuButtonsHide: Record<string, boolean>` — hide specific buttons when `true` (supports `left`, `center`, `right`, `clear`, `preview`, `size50`, `size100`).
+- `alignMenuOrder: string[]` — order of buttons in the alignment menu (default: `['left', 'center', 'right', 'clear', 'preview', 'size50', 'size100', 'copy', 'copyUrl']`). Buttons are displayed in the order specified.
+- `alignMenuButtonsHide: Record<string, boolean>` — hide specific buttons when `true` (supports `left`, `center`, `right`, `clear`, `preview`, `size50`, `size100`, `copy`, `copyUrl`).
 - `fitToContainerSelector: string` — CSS selector used as width reference for the initial image fit (default: `.tiptap`).
 - `autoFitWhenOversized: boolean` — when `true`, oversized images inserted without explicit width are automatically set to `width: 100%` and `height: auto` (default: `true`).
 - `maxAllowedWidth: number | null` — maximum allowed width in pixels. If image width exceeds this value, it is forced to `width: 100%` and `height: auto`.
+
+Clipboard operations require a secure context. Copying an image writes PNG and requires its host to allow cross-origin fetches (CORS). The icon-only copy buttons use Bootstrap Icons, so include its stylesheet in the host app.
 
 Reference:
 - Defined in `resizable-image.js:387-394`

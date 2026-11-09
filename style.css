@@ -67,6 +67,9 @@
   padding: 4px 6px;
   border-radius: 4px;
   cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
 }
 .tiptap-izzy-resizable-image .resizable-image-menu button:hover {
   background: #eee;
