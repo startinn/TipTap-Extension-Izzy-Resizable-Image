@@ -13,6 +13,26 @@ function createHandle(direction) {
   return handle;
 }
 
+const DEFAULT_MENU_LABELS = {
+  left: 'Align image left',
+  center: 'Center image',
+  right: 'Align image right',
+  clear: 'Remove image alignment',
+  preview: 'Zoom image',
+  size50: 'Resize image to 50%',
+  size100: 'Resize image to 100%',
+  copy: 'Copy image to clipboard',
+  copyUrl: 'Copy image URL to clipboard',
+  copied: 'Image copied',
+  copyFailed: 'Failed to copy image',
+  urlCopied: 'Image URL copied',
+  urlCopyFailed: 'Failed to copy image URL',
+};
+
+function clamp(value, min, max) {
+  return Math.min(max, Math.max(min, value));
+}
+
 function applyDimensionStyle(el, property, value) {
   if (value == null || value === '') {
     el.style.removeProperty(property);
@@ -174,21 +194,29 @@ class ResizableImageView {
     this.btnView.innerHTML = (node.attrs.iconView != null ? node.attrs.iconView : (this.options.alignMenuIcons?.preview ?? '🔍'));
     this.btnSize50.textContent = '50%';
     this.btnSize100.textContent = '100%';
-    this.btnCopy.innerHTML = '<i class="bi bi-clipboard" aria-hidden="true"></i>';
-    this.btnCopyUrl.innerHTML = '<i class="bi bi-link-45deg" aria-hidden="true"></i>';
+    this.copyIcons = {
+      copy: this.options.alignMenuIcons?.copy ?? '📋',
+      copyUrl: this.options.alignMenuIcons?.copyUrl ?? '🔗',
+      copied: this.options.alignMenuIcons?.copied ?? '✓',
+      copyError: this.options.alignMenuIcons?.copyError ?? '⚠',
+    };
+    this.btnCopy.innerHTML = this.copyIcons.copy;
+    this.btnCopyUrl.innerHTML = this.copyIcons.copyUrl;
 
+    this.labels = { ...DEFAULT_MENU_LABELS, ...this.options.alignMenuLabels };
     const toolbarButtonTitles = [
-      [this.btnLeft, 'Alinhar imagem à esquerda'],
-      [this.btnCenter, 'Centralizar imagem'],
-      [this.btnRight, 'Alinhar imagem à direita'],
-      [this.btnClear, 'Remover alinhamento da imagem'],
-      [this.btnView, 'Ampliar imagem'],
-      [this.btnSize50, 'Redimensionar imagem para 50%'],
-      [this.btnSize100, 'Ajustar imagem para 100%'],
-      [this.btnCopy, 'Copiar imagem para a área de transferência'],
-      [this.btnCopyUrl, 'Copiar URL da imagem para a área de transferência'],
+      [this.btnLeft, this.labels.left],
+      [this.btnCenter, this.labels.center],
+      [this.btnRight, this.labels.right],
+      [this.btnClear, this.labels.clear],
+      [this.btnView, this.labels.preview],
+      [this.btnSize50, this.labels.size50],
+      [this.btnSize100, this.labels.size100],
+      [this.btnCopy, this.labels.copy],
+      [this.btnCopyUrl, this.labels.copyUrl],
     ];
     toolbarButtonTitles.forEach(([button, title]) => {
+      button.type = 'button';
       button.title = title;
       button.setAttribute('aria-label', title);
     });
@@ -263,13 +291,13 @@ class ResizableImageView {
     this.modalImg.style.maxHeight = '90vh';
     this.modalImg.style.boxShadow = '0 8px 24px rgba(0,0,0,0.5)';
     this.modalScale = 1;
-    this.modalImg.style.transformOrigin = 'center';
+    this.modalOffsetX = 0;
+    this.modalOffsetY = 0;
+    this.modalImg.style.transformOrigin = '0 0';
     this.modalImg.style.transition = 'transform 120ms ease-out';
-    this.modalImg.addEventListener('wheel', (event) => {
+    this.modalOverlay.addEventListener('wheel', (event) => {
       event.preventDefault();
-      const zoomFactor = Math.exp(-event.deltaY * 0.001);
-      this.modalScale = Math.min(4, Math.max(0.25, this.modalScale * zoomFactor));
-      this.modalImg.style.transform = `scale(${this.modalScale})`;
+      this.zoomModal(event);
     }, { passive: false });
     const modalClose = document.createElement('button');
     modalClose.textContent = '✕';
@@ -596,9 +624,39 @@ class ResizableImageView {
   }
 
   openModal() {
-    this.modalScale = 1;
-    this.modalImg.style.transform = 'scale(1)';
+    this.setModalTransform(1, 0, 0);
     if (!this.modalOverlay.parentNode) document.body.appendChild(this.modalOverlay);
+  }
+
+  setModalTransform(scale, offsetX, offsetY) {
+    this.modalScale = scale;
+    this.modalOffsetX = offsetX;
+    this.modalOffsetY = offsetY;
+    this.modalImg.style.transform = `translate(${offsetX}px, ${offsetY}px) scale(${scale})`;
+  }
+
+  zoomModal(event) {
+    const scale = clamp(this.modalScale * Math.exp(-event.deltaY * 0.001), 0.25, 4);
+    const width = this.modalImg.offsetWidth;
+    const height = this.modalImg.offsetHeight;
+
+    // At or below fit size the image stays centered
+    if (scale <= 1) {
+      this.setModalTransform(scale, width * (1 - scale) / 2, height * (1 - scale) / 2);
+      return;
+    }
+
+    // Keep the point under the cursor fixed, or the nearest image edge when outside it
+    const ratio = scale / this.modalScale;
+    const anchorOffset = (pointer, offset, size) => {
+      const anchor = clamp(pointer, offset, offset + size * this.modalScale);
+      return anchor - ratio * (anchor - offset);
+    };
+    this.setModalTransform(
+      scale,
+      anchorOffset(event.clientX - this.modalImg.offsetLeft, this.modalOffsetX, width),
+      anchorOffset(event.clientY - this.modalImg.offsetTop, this.modalOffsetY, height),
+    );
   }
 
   closeModal() {
@@ -612,24 +670,33 @@ class ResizableImageView {
     const imageBlob = await response.blob();
     if (imageBlob.type === 'image/png') return imageBlob;
 
-    const imageBitmap = await createImageBitmap(imageBlob);
-    const canvas = document.createElement('canvas');
-    canvas.width = imageBitmap.width;
-    canvas.height = imageBitmap.height;
-    const context = canvas.getContext('2d');
-    if (!context) {
-      imageBitmap.close();
-      throw new Error('Unable to create image canvas');
-    }
-    context.drawImage(imageBitmap, 0, 0);
-    imageBitmap.close();
+    // Decode through an <img> because createImageBitmap rejects SVG blobs
+    const objectUrl = URL.createObjectURL(imageBlob);
+    try {
+      const image = await new Promise((resolve, reject) => {
+        const element = new Image();
+        element.onload = () => resolve(element);
+        element.onerror = () => reject(new Error('Unable to decode image'));
+        element.src = objectUrl;
+      });
 
-    return new Promise((resolve, reject) => {
-      canvas.toBlob((blob) => {
-        if (blob) resolve(blob);
-        else reject(new Error('Unable to convert image to PNG'));
-      }, 'image/png');
-    });
+      const rendered = this.img.getBoundingClientRect();
+      const canvas = document.createElement('canvas');
+      canvas.width = image.naturalWidth || Math.round(rendered.width);
+      canvas.height = image.naturalHeight || Math.round(rendered.height);
+      const context = canvas.getContext('2d');
+      if (!context) throw new Error('Unable to create image canvas');
+      context.drawImage(image, 0, 0, canvas.width, canvas.height);
+
+      return await new Promise((resolve, reject) => {
+        canvas.toBlob((blob) => {
+          if (blob) resolve(blob);
+          else reject(new Error('Unable to convert image to PNG'));
+        }, 'image/png');
+      });
+    } finally {
+      URL.revokeObjectURL(objectUrl);
+    }
   }
 
   async copyImageToClipboard() {
@@ -638,13 +705,15 @@ class ResizableImageView {
         throw new Error('Image clipboard is not supported');
       }
       const imagePromise = this.loadImageAsPng();
+      // Failures surface through clipboard.write; this only avoids an unhandled rejection
+      imagePromise.catch(() => {});
       await navigator.clipboard.write([
         new ClipboardItem({ 'image/png': imagePromise }),
       ]);
-      this.showCopyFeedback(this.btnCopy, 'Imagem copiada', true);
+      this.showCopyFeedback(this.btnCopy, this.labels.copied, true);
     } catch (error) {
       console.error('Unable to copy image to clipboard', error);
-      this.showCopyFeedback(this.btnCopy, 'Falha ao copiar imagem');
+      this.showCopyFeedback(this.btnCopy, this.labels.copyFailed);
     }
   }
 
@@ -654,24 +723,25 @@ class ResizableImageView {
         throw new Error('Text clipboard is not supported');
       }
       await navigator.clipboard.writeText(this.node.attrs.src || this.img.currentSrc || this.img.src);
-      this.showCopyFeedback(this.btnCopyUrl, 'URL copiada', true);
+      this.showCopyFeedback(this.btnCopyUrl, this.labels.urlCopied, true);
     } catch (error) {
       console.error('Unable to copy image URL to clipboard', error);
-      this.showCopyFeedback(this.btnCopyUrl, 'Falha ao copiar URL');
+      this.showCopyFeedback(this.btnCopyUrl, this.labels.urlCopyFailed);
     }
   }
 
   showCopyFeedback(button, message, copied = false) {
     if (button.copyFeedbackTimeout) window.clearTimeout(button.copyFeedbackTimeout);
+    button.innerHTML = copied ? this.copyIcons.copied : this.copyIcons.copyError;
+    button.style.color = copied ? '#198754' : '#dc3545';
     button.title = message;
-    if (copied) {
-      button.innerHTML = '<i class="bi bi-check-lg" style="color: #198754" aria-hidden="true"></i>';
-    }
+    button.setAttribute('aria-label', message);
+    // Restore even while detached: deselecting removes the menu, and it is reused on reselect
     button.copyFeedbackTimeout = window.setTimeout(() => {
-      if (button.isConnected) {
-        button.innerHTML = button.dataset.originalIcon;
-        button.title = button.dataset.originalTitle;
-      }
+      button.innerHTML = button.dataset.originalIcon;
+      button.style.color = '';
+      button.title = button.dataset.originalTitle;
+      button.setAttribute('aria-label', button.dataset.originalTitle);
       delete button.copyFeedbackTimeout;
     }, 3000);
   }
@@ -732,7 +802,8 @@ export const TiptapIzzyExtensionResizableImage = Node.create({
       height: null,
       showAlignMenu: true,
       alignMenuPosition: 'below',
-      alignMenuIcons: { left: '⟸', center: '⇔', right: '⟹', clear: 'x' },
+      alignMenuIcons: { left: '⟸', center: '⇔', right: '⟹', clear: 'x', preview: '🔍', copy: '📋', copyUrl: '🔗', copied: '✓', copyError: '⚠' },
+      alignMenuLabels: {},
       alignMenuOrder: ['left', 'center', 'right', 'clear', 'preview', 'size50', 'size100', 'copy', 'copyUrl'],
       alignMenuButtonsHide: {},
       fitToContainerSelector: '.tiptap',
