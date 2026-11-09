@@ -114,14 +114,15 @@ editor.commands.insertResizableImage({ src: 'https://picsum.photos/300/200', wid
 - `height: number | null` — default height in pixels when node `height` attr is missing.
 - `showAlignMenu: boolean` — whether the inline alignment menu is shown by default.
 - `alignMenuPosition: 'above' | 'below'` — where the menu appears relative to the image.
-- `alignMenuIcons: { left: string, center: string, right: string, clear: string, preview: string }` — HTML strings for menu buttons.
+- `alignMenuIcons: { left: string, center: string, right: string, clear: string, preview: string, copy: string, copyUrl: string, copied: string, copyError: string }` — HTML strings for menu buttons. `copied` and `copyError` are shown for 3 seconds after a copy succeeds or fails.
+- `alignMenuLabels: Record<string, string>` — overrides the English tooltip and `aria-label` texts, merged over the defaults (supports `left`, `center`, `right`, `clear`, `preview`, `size50`, `size100`, `copy`, `copyUrl`, `copied`, `copyFailed`, `urlCopied`, `urlCopyFailed`).
 - `alignMenuOrder: string[]` — order of buttons in the alignment menu (default: `['left', 'center', 'right', 'clear', 'preview', 'size50', 'size100', 'copy', 'copyUrl']`). Buttons are displayed in the order specified.
 - `alignMenuButtonsHide: Record<string, boolean>` — hide specific buttons when `true` (supports `left`, `center`, `right`, `clear`, `preview`, `size50`, `size100`, `copy`, `copyUrl`).
 - `fitToContainerSelector: string` — CSS selector used as width reference for the initial image fit (default: `.tiptap`).
 - `autoFitWhenOversized: boolean` — when `true`, oversized images inserted without explicit width are automatically set to `width: 100%` and `height: auto` (default: `true`).
 - `maxAllowedWidth: number | null` — maximum allowed width in pixels. If image width exceeds this value, it is forced to `width: 100%` and `height: auto`.
 
-Clipboard operations require a secure context. Copying an image writes PNG and requires its host to allow cross-origin fetches (CORS). The icon-only copy buttons use Bootstrap Icons, so include its stylesheet in the host app.
+Clipboard operations require a secure context. Copying an image writes PNG and requires its host to allow cross-origin fetches (CORS).
 
 Reference:
 - Defined in `resizable-image.js:387-394`
